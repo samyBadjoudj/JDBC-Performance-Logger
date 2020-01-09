@@ -276,45 +276,57 @@ public class PerfLogger {
         strBuilder.append("*/");
         return strBuilder.toString();
     }
-    public static String removeComments(String result){
-        if(result == null || "".equals(result) || result.length() < 4)
-            return result;
+    public static String removeComments(String sqlStatement){
+        if("".equals(sqlStatement) || sqlStatement.length() < 4)
+            return sqlStatement;
         //do a try catch the comments are never closed or empty string, should not happen,
         try {
             boolean inString = false;
-            StringBuffer cleanedStatement = new StringBuffer();
-            for (int i = 0; i < result.length(); i++) {
+            boolean isCarriageReturnFromComment = false;
+            StringBuilder cleanedStatement = new StringBuilder();
+            for (int i = 0; i < sqlStatement.length(); i++) {
+                isCarriageReturnFromComment = false;
                 //take care of the escape char
-                if (result.charAt(i) == '\'') {
+                if (sqlStatement.charAt(i) == '\'') {
                     inString = !inString;
                 }
                 if (!inString) {
-                    if (isStartingComment(result, i)) {
+                    if (isStartingBlockComment(sqlStatement, i)) {
                         i = i + 2;
-                        while (!isEndComment(result, i)) {
+                        while (!isEndBlockComment(sqlStatement, i)) {
                             i++;
                         }
                         i = i + 2;
+                    }else if(isStartingEolComment(sqlStatement,i)){
+                        i = i + 2;
+                        while (i < (sqlStatement.length()) && sqlStatement.charAt(i) != '\n') {
+                            i++;
+                        }
+                        isCarriageReturnFromComment = true;
                     }
                 }
-                if (i < result.length()) {
-                    cleanedStatement.append(result.charAt(i));
-
+                if (i < sqlStatement.length() && !isCarriageReturnFromComment) {
+                    cleanedStatement.append(sqlStatement.charAt(i));
                 }
             }
-            if(inString) return result;
+            if(inString) {
+                return sqlStatement;
+            }
 
             return cleanedStatement.toString();
         }
         catch (StringIndexOutOfBoundsException e) {
-            return result;
+            return sqlStatement;
         }
     }
 
-    private static boolean isStartingComment(String result, int i) {
-        return result.charAt(i)== '/' &&  result.charAt(i+1)== '*' &&  result.charAt(i+2)!= '+';
+    private static boolean isStartingEolComment(String sqlStatement, int i) {
+        return sqlStatement.charAt(i)== '-' &&  sqlStatement.charAt(i+1)== '-';
     }
-    private static boolean isEndComment(String result, int i) {
-        return result.charAt(i)== '*' &&  result.charAt(i+1)== '/';
+    private static boolean isStartingBlockComment(String sqlStatement, int i) {
+        return sqlStatement.charAt(i)== '/' &&  sqlStatement.charAt(i+1)== '*' &&  sqlStatement.charAt(i+2)!= '+';
+    }
+    private static boolean isEndBlockComment(String sqlStatement, int i) {
+        return sqlStatement.charAt(i)== '*' &&  sqlStatement.charAt(i+1)== '/';
     }
 }
